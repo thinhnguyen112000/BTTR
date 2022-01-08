@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch import FloatTensor, LongTensor
 
 from bttr.datamodule import Batch, vocab
-from bttr.model.bttr import BTTR
+from bttr.model.bttr_model import BTTR
 from bttr.utils import ExpRateRecorder, Hypothesis, ce_loss, to_bi_tgt_out
 
 

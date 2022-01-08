@@ -183,6 +183,7 @@ class Encoder(pl.LightningModule):
         feature = self.pos_enc_2d(feature, mask)
 
         # flat to 1-D
-        feature = rearrange(feature, "b h w d -> b (h w) d")
+        feature = rearrange(feature, ""
+                                     ".0")
         mask = rearrange(mask, "b h w -> b (h w)")
         return feature, mask

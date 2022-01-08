@@ -298,3 +298,17 @@ class Decoder(pl.LightningModule):
         r2l_hypos = self._beam_search(src, mask, "r2l", beam_size, max_len)
         self._cross_rate_score(src, mask, r2l_hypos, direction="l2r")
         return l2r_hypos + r2l_hypos
+
+
+if __name__ == '__main__':
+    x = torch.rand((2,3,256))
+    mask = torch.rand((2,3))
+    tgt = torch.zeros((2,50)).long()
+    k = Decoder(d_model=256,
+                nhead=8,
+                num_decoder_layers=3,
+                dim_feedforward=1024,
+                dropout=0.3)
+
+    print(k(x, mask, tgt))
+

@@ -5,7 +5,6 @@ import torch
 from torch import FloatTensor, LongTensor
 
 from bttr.utils import Hypothesis
-
 from .decoder import Decoder
 from .encoder import Encoder
 
