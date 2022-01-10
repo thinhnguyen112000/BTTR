@@ -91,8 +91,10 @@ def extract_data(datasets: list, dir_name: str) -> Data:
     for line in datasets:
         img_name = line[:13]
         formula = line[14:]
-        img = Image.open(f"{dir_name}/{img_name}.png").copy()
-        data.append((img_name, img, formula))
+        image_path = f"{dir_name}/{img_name}.jpg".replace('Train_', "")
+        if(os.path.isfile(image_path)):
+          img = Image.open(image_path).copy()
+          data.append((img_name, img, formula))
 
     print(f"Extract data from: {dir_name}, with data size: {len(data)}")
 
