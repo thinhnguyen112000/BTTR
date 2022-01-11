@@ -13,6 +13,7 @@ trainer:
         filename: '{epoch}-{step}-{val_ExpRate:.4f}'
   # gpus: 1
   gpus: 1
+  device: 'cuda'
   accelerator: ddp
   check_val_every_n_epoch: 2
   max_epochs: 300
@@ -32,5 +33,5 @@ model:
 data:
   batch_size: 8
   num_workers: 0
-  dir_name: "G:/NCKH_DUT/OCR/dataset/ProcessImage"
-  dir_path: 'G:/NCKH_DUT/OCR/dataset/'
+  name_dir_images: 'ProcessImage'
+  dir_path: '/content/drive/MyDrive/'
