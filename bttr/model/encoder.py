@@ -158,14 +158,12 @@ class Encoder(pl.LightningModule):
         self, img: FloatTensor, img_mask: LongTensor
     ) -> Tuple[FloatTensor, LongTensor]:
         """encode image to feature
-
         Parameters
         ----------
         img : FloatTensor
             [b, 1, h', w']
         img_mask: LongTensor
             [b, h', w']
-
         Returns
         -------
         Tuple[FloatTensor, LongTensor]
@@ -183,7 +181,6 @@ class Encoder(pl.LightningModule):
         feature = self.pos_enc_2d(feature, mask)
 
         # flat to 1-D
-        feature = rearrange(feature, ""
-                                     ".0")
+        feature = rearrange(feature, "b h w d -> b (h w) d")
         mask = rearrange(mask, "b h w -> b (h w)")
         return feature, mask

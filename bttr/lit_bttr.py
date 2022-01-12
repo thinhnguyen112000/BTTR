@@ -12,23 +12,23 @@ from bttr.utils import ExpRateRecorder, Hypothesis, ce_loss, to_bi_tgt_out
 
 class LitBTTR(pl.LightningModule):
     def __init__(
-        self,
-        d_model: int,
-        # encoder
-        growth_rate: int,
-        num_layers: int,
-        # decoder
-        nhead: int,
-        num_decoder_layers: int,
-        dim_feedforward: int,
-        dropout: float,
-        # beam search
-        beam_size: int,
-        max_len: int,
-        alpha: float,
-        # training
-        learning_rate: float,
-        patience: int,
+            self,
+            d_model: int,
+            # encoder
+            growth_rate: int,
+            num_layers: int,
+            # decoder
+            nhead: int,
+            num_decoder_layers: int,
+            dim_feedforward: int,
+            dropout: float,
+            # beam search
+            beam_size: int,
+            max_len: int,
+            alpha: float,
+            # training
+            learning_rate: float,
+            patience: int,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -46,7 +46,7 @@ class LitBTTR(pl.LightningModule):
         self.exprate_recorder = ExpRateRecorder()
 
     def forward(
-        self, img: FloatTensor, img_mask: LongTensor, tgt: LongTensor
+            self, img: FloatTensor, img_mask: LongTensor, tgt: LongTensor
     ) -> FloatTensor:
         """run img and bi-tgt
 
@@ -67,11 +67,11 @@ class LitBTTR(pl.LightningModule):
         return self.bttr(img, img_mask, tgt)
 
     def beam_search(
-        self,
-        img: FloatTensor,
-        beam_size: int = 10,
-        max_len: int = 200,
-        alpha: float = 1.0,
+            self,
+            img: FloatTensor,
+            beam_size: int = 10,
+            max_len: int = 200,
+            alpha: float = 1.0,
     ) -> str:
         """for inference, one image at a time
 
