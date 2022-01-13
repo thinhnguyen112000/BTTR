@@ -33,4 +33,4 @@ data:
   batch_size: 8
   num_workers: 0
   name_dir_images: 'ProcessImage'
-  dir_path: '/content/drive/MyDrive/'
+  dir_path: ''

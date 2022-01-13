@@ -70,9 +70,10 @@ class LatexDataloader(torch.utils.data.IterableDataset):
         path_pkl = self.dir_path + self.type_data + '.pkl'
         if (self.isLoaded):
             assert os.path.exists(path_pkl)
-            print(f'Loaded {self.type_data} datasets')
+
             with open(path_pkl, 'rb') as f:
                 total_list_data = pickle.load(f)
+            print(f'Loaded {self.type_data} datasets: {len(total_list_data)}')
         else:
             print(f'Start loading {self.type_data} data...')
             datasets = open(self.dir_path + self.type_data + '.txt', mode='r').read().splitlines()
@@ -100,37 +101,13 @@ class LatexDataloader(torch.utils.data.IterableDataset):
                 pickle.dump(total_list_data, f)
         return total_list_data
 
-    # def __getitem__(self, item):
-    #     imgs_name, images, formulars = [], [], []
-    #     for img_name, image_path, formular in self.data[item]:
-    #         image = cv2.imread(image_path, 0)
-    #         image = transforms.ToTensor()(image)
-    #         images.append(image)
-    #         imgs_name.append(img_name)
-    #         formulars.append(formular)
-    #
-    #     heights_x = [s.size(1) for s in images]
-    #     widths_x = [s.size(2) for s in images]
-    #
-    #     n_samples = len(heights_x)
-    #     max_height_x = max(heights_x)
-    #     max_width_x = max(widths_x)
-    #
-    #     x = torch.zeros(n_samples, 1, max_height_x, max_width_x)
-    #     x_mask = torch.ones(n_samples, max_height_x, max_width_x, dtype=torch.bool)
-    #
-    #     seqs_y = [vocab.words2indices(x) for x in formulars]
-    #
-    #     for index, image_path in enumerate(images):
-    #         x[index, :, : heights_x[index], : widths_x[index]] = image_path
-    #         x_mask[index, : heights_x[index], : widths_x[index]] = 0
-    #
-    #     return imgs_name, torch.FloatTensor(x), x_mask.long(), seqs_y
+    def __getitem__(self, item):
+        return self.compute_batch(self.data[item])
 
     def resize_aspect_ratio(self, max_h, max_w):
         height_default, width_default = self.image_size[0], self.image_size[1]
-        ratio = width_default/height_default
-        new_h, new_w = min(max_h, max_w/ratio), min(max_w, max_h*ratio)
+        ratio = width_default / height_default
+        new_h, new_w = min(max_h, max_w / ratio), min(max_w, max_h * ratio)
         return new_h, new_w
 
     def compute_batch(self, batch_data):
@@ -156,9 +133,9 @@ class LatexDataloader(torch.utils.data.IterableDataset):
 
         for index, image in enumerate(images):
             h_x_img, w_x_img = self.resize_aspect_ratio(heights_x[index], widths_x[index])
-            x[index, (max_height_x-h_x_img)//2:(max_height_x-h_x_img)//2 + h_x_img,
-                     (max_width_x-w_x_img)//2:(max_width_x-w_x_img)//2 + w_x_img]\
-                     = cv2.resize(image, (w_x_img, h_x_img), interpolation=cv2.INTER_NEAREST)
+            x[index, (max_height_x - h_x_img) // 2:(max_height_x - h_x_img) // 2 + h_x_img,
+            (max_width_x - w_x_img) // 2:(max_width_x - w_x_img) // 2 + w_x_img] \
+                = cv2.resize(image, (w_x_img, h_x_img), interpolation=cv2.INTER_NEAREST)
             x_mask[index, : h_x_img, : w_x_img] = 0
         return imgs_name, x, x_mask, seqs_y
 
