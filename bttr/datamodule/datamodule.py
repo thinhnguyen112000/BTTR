@@ -157,7 +157,8 @@ class LatexDataloader(torch.utils.data.IterableDataset):
         for index, image in enumerate(images):
             h_x_img, w_x_img = self.resize_aspect_ratio(heights_x[index], widths_x[index])
             x[index, (max_height_x-h_x_img)//2:(max_height_x-h_x_img)//2 + h_x_img,
-                     (max_width_x-w_x_img)//2:(max_width_x-w_x_img)//2 + w_x_img] = image
+                     (max_width_x-w_x_img)//2:(max_width_x-w_x_img)//2 + w_x_img]\
+                     = cv2.resize(image, (w_x_img, h_x_img), interpolation=cv2.INTER_NEAREST)
             x_mask[index, : h_x_img, : w_x_img] = 0
         return imgs_name, x, x_mask, seqs_y
 
@@ -236,50 +237,4 @@ class CROHMEDatamodule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
-    total_list_data = []
-    list_data = []
-    batch_size = 8
-    dir_path = '/content/drive/MyDrive/'
-    type_data = 'train'
-    name_dir_images = 'ProcessImage'
-    with open(dir_path + type_data + '.txt', mode='r') as f:
-        print(f'Start loading {type_data} data...')
-        datasets = f.readlines()
-
-    number_samples = int(len(datasets) * 100 / 100)
-    for id, line in tqdm(enumerate(datasets[:number_samples])):
-        img_name = line[:13]
-        formula = line[14:]
-        image_path = f"{dir_path + name_dir_images}/{img_name}.jpg".replace('Train_', "")
-        if os.path.exists(image_path):
-            if id != 0 and id % batch_size == 0:
-                total_list_data.append(list_data)
-            list_data.append((img_name, image_path, formula))
-    if (len(datasets) % batch_size):
-        list_data.append(random.sample(total_list_data[0], batch_size - len(list_data)))
-        total_list_data.append(list_data)
-
-    for batch_data in total_list_data:
-        imgs_name, images, formulars = [], [], []
-        for img_name, image_path, formular in batch_data:
-            image = cv2.imread(image_path, 0)
-            image = transforms.ToTensor()(image)
-            images.append(image)
-            imgs_name.append(img_name)
-            formulars.append(formular)
-
-        heights_x = [s.size(1) for s in images]
-        widths_x = [s.size(2) for s in images]
-
-        n_samples = len(heights_x)
-        max_height_x = max(heights_x)
-        max_width_x = max(widths_x)
-
-        x = torch.zeros(n_samples, 1, max_height_x, max_width_x)
-        x_mask = torch.ones(n_samples, max_height_x, max_width_x, dtype=torch.bool)
-
-        seqs_y = [vocab.words2indices(x) for x in formulars]
-
-        for index, image_path in enumerate(images):
-            x[index, :, : heights_x[index], : widths_x[index]] = image_path
-            x_mask[index, : heights_x[index], : widths_x[index]] = 0
+    data = CROHMEDatamodule()
