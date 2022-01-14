@@ -8,12 +8,12 @@ from torch import FloatTensor, LongTensor
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms
 import random
-from .vocab import CROHMEVocab
+from vocab import CROHMEVocab
 import pickle
 import cv2
-
+import numpy as np
+from collections import Counter
 vocab = CROHMEVocab()
-
 MAX_SIZE = 32e4  # change here accroading to your GPU memory
 
 
@@ -70,9 +70,10 @@ class LatexDataloader(torch.utils.data.IterableDataset):
         path_pkl = self.dir_path + self.type_data + '.pkl'
         if (self.isLoaded):
             assert os.path.exists(path_pkl)
-            print(f'Loaded {self.type_data} datasets')
+
             with open(path_pkl, 'rb') as f:
                 total_list_data = pickle.load(f)
+            print(f'Loaded {self.type_data} datasets: {len(total_list_data)} sample')
         else:
             print(f'Start loading {self.type_data} data...')
             datasets = open(self.dir_path + self.type_data + '.txt', mode='r').read().splitlines()
@@ -100,66 +101,84 @@ class LatexDataloader(torch.utils.data.IterableDataset):
                 pickle.dump(total_list_data, f)
         return total_list_data
 
-    # def __getitem__(self, item):
-    #     imgs_name, images, formulars = [], [], []
-    #     for img_name, image_path, formular in self.data[item]:
-    #         image = cv2.imread(image_path, 0)
-    #         image = transforms.ToTensor()(image)
-    #         images.append(image)
-    #         imgs_name.append(img_name)
-    #         formulars.append(formular)
-    #
-    #     heights_x = [s.size(1) for s in images]
-    #     widths_x = [s.size(2) for s in images]
-    #
-    #     n_samples = len(heights_x)
-    #     max_height_x = max(heights_x)
-    #     max_width_x = max(widths_x)
-    #
-    #     x = torch.zeros(n_samples, 1, max_height_x, max_width_x)
-    #     x_mask = torch.ones(n_samples, max_height_x, max_width_x, dtype=torch.bool)
-    #
-    #     seqs_y = [vocab.words2indices(x) for x in formulars]
-    #
-    #     for index, image_path in enumerate(images):
-    #         x[index, :, : heights_x[index], : widths_x[index]] = image_path
-    #         x_mask[index, : heights_x[index], : widths_x[index]] = 0
-    #
-    #     return imgs_name, torch.FloatTensor(x), x_mask.long(), seqs_y
+    def __getitem__(self, item):
+        return self.compute_batch(self.data[item])
 
-    def resize_aspect_ratio(self, max_h, max_w):
-        height_default, width_default = self.image_size[0], self.image_size[1]
-        ratio = width_default/height_default
-        new_h, new_w = min(max_h, max_w/ratio), min(max_w, max_h*ratio)
-        return new_h, new_w
+    def create_new_shape(self, h_w, sh_sw):
+        h, w = h_w
+        sh, sw = sh_sw
+
+        if h > sh and w > sw:
+            ratio = w / sw
+            new_w = w / ratio
+            new_h = h / ratio
+            if(new_h > sh):
+                ratio = new_h / sh
+                new_h = np.round(new_h / ratio).astype(int)
+                new_w = np.round(new_w / ratio).astype(int)
+            else:
+                new_h = np.round(new_h).astype(int)
+                new_w = np.round(new_w).astype(int)
+
+        elif h > sh and w < sw:
+            ratio = h / sh
+            new_h = np.round(h / ratio).astype(int)
+            new_w = np.round(w / ratio).astype(int)
+        elif h < sh and w > sw:
+            ratio = w / sw
+            new_h = np.round(h / ratio).astype(int)
+            new_w = np.round(w / ratio).astype(int)
+        else:
+            ratio = min(sh / h, sw / w)
+            new_h = np.round(h * ratio).astype(int)
+            new_w = np.round(w * ratio).astype(int)
+
+
+        pad_left, pad_right = np.floor((sw-new_w)/2).astype(int), np.ceil((sw-new_w)/2).astype(int)
+        pad_top, pad_bottom = np.floor((sh-new_h)/2).astype(int), np.ceil((sh-new_h)/2).astype(int)
+        return (new_h, new_w), (pad_top, pad_bottom, pad_left, pad_right)
+
+
+    def read_image(self, image_path):
+        image = cv2.imread(image_path, 0)
+        h, w = image.shape
+        sh, sw = self.image_size
+
+
+
+        # interpolation method
+        interp = cv2.INTER_AREA # shrinking image
+
+        # compute scaling and pad sizing
+        new_wh, pad = self.create_new_shape((h, w), (sh, sw))
+        new_h, new_w = new_wh
+        pad_top, pad_bot, pad_left, pad_right = pad
+
+        # resize and add padding
+        scaled_img = cv2.resize(image, (new_w, new_h), interpolation=interp)
+        dict_frequency = dict(sum(map(Counter, scaled_img), Counter()))
+        best_frequency_value = list(dict_frequency.keys())[list(dict_frequency.values()).index(max(dict_frequency.values()))]
+        scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right,
+                                        borderType=cv2.BORDER_CONSTANT, value=int(best_frequency_value))
+        scaled_img = transforms.ToTensor()(scaled_img)
+        return scaled_img
 
     def compute_batch(self, batch_data):
         imgs_name, images, seqs_y = [], [], []
         for img_name, image_path, seq_y in batch_data:
-            image = cv2.imread(image_path, 0)
-            image = transforms.ToTensor()(image)
+            image = self.read_image(image_path)
             images.append(image)
             imgs_name.append(img_name)
             seqs_y.append(seq_y)
 
-        heights_x = [s.size(1) for s in images]
-        widths_x = [s.size(2) for s in images]
-
-        n_samples = len(heights_x)
-        max_height_x = max(heights_x)
-        max_width_x = max(widths_x)
-
-        max_height_x, max_width_x = self.resize_aspect_ratio(max_height_x, max_width_x)
-
-        x = torch.zeros(n_samples, 1, max_height_x, max_width_x)
-        x_mask = torch.ones(n_samples, max_height_x, max_width_x, dtype=torch.bool)
+        n_samples = len(images)
+        height_default, width_default = self.image_size
+        x = torch.zeros(n_samples, 1, height_default, width_default)
+        x_mask = torch.ones(n_samples, height_default, width_default, dtype=torch.bool)
 
         for index, image in enumerate(images):
-            h_x_img, w_x_img = self.resize_aspect_ratio(heights_x[index], widths_x[index])
-            x[index, (max_height_x-h_x_img)//2:(max_height_x-h_x_img)//2 + h_x_img,
-                     (max_width_x-w_x_img)//2:(max_width_x-w_x_img)//2 + w_x_img]\
-                     = cv2.resize(image, (w_x_img, h_x_img), interpolation=cv2.INTER_NEAREST)
-            x_mask[index, : h_x_img, : w_x_img] = 0
+            x[index, :height_default, :width_default] = image
+            x_mask[index, : height_default, : width_default] = 0
         return imgs_name, x, x_mask, seqs_y
 
     def __iter__(self):
@@ -169,8 +188,8 @@ class LatexDataloader(torch.utils.data.IterableDataset):
             imgs_name, x, x_mask, seqs_y = self.compute_batch(batch_data)
             yield imgs_name, torch.FloatTensor(x), x_mask.long(), seqs_y
 
-    def __len__(self):
-        return len(self.data)
+    # def __len__(self):
+    #     return len(self.data)
 
 
 class CROHMEDatamodule(pl.LightningDataModule):
@@ -237,4 +256,62 @@ class CROHMEDatamodule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
-    data = CROHMEDatamodule()
+    def create_new_shape(h_w, sh_sw):
+        h, w = h_w
+        sh, sw = sh_sw
+
+        if h > sh and w > sw:
+            ratio = w / sw
+            new_w = w / ratio
+            new_h = h / ratio
+            if (new_h > sh):
+                ratio = new_h / sh
+                new_h = np.round(new_h / ratio).astype(int)
+                new_w = np.round(new_w / ratio).astype(int)
+            else:
+                new_h = np.round(new_h).astype(int)
+                new_w = np.round(new_w).astype(int)
+
+        elif h > sh and w < sw:
+            ratio = h / sh
+            new_h = np.round(h / ratio).astype(int)
+            new_w = np.round(w / ratio).astype(int)
+        elif h < sh and w > sw:
+            ratio = w / sw
+            new_h = np.round(h / ratio).astype(int)
+            new_w = np.round(w / ratio).astype(int)
+        else:
+            ratio = min(sh / h, sw / w)
+            new_h = np.round(h * ratio).astype(int)
+            new_w = np.round(w * ratio).astype(int)
+
+        pad_left, pad_right = np.floor((sw - new_w) / 2).astype(int), np.ceil((sw - new_w) / 2).astype(int)
+        pad_top, pad_bottom = np.floor((sh - new_h) / 2).astype(int), np.ceil((sh - new_h) / 2).astype(int)
+        return (new_h, new_w), (pad_top, pad_bottom, pad_left, pad_right)
+
+
+    def read_image(image_path, image_size):
+        image = cv2.imread(image_path, 0)
+        cv2.imshow('debug1', image)
+        cv2.waitKey(0)
+        h, w = image.shape
+        sh, sw = image_size
+
+        interp = cv2.INTER_AREA
+        new_wh, pad = create_new_shape((h, w), (sh, sw))
+        new_h, new_w = new_wh
+        pad_top, pad_bot, pad_left, pad_right = pad
+        scaled_img = cv2.resize(image, (new_w, new_h), interpolation=interp)
+        dict_frequency = dict(sum(map(Counter, scaled_img), Counter()))
+        best_frequency_value = list(dict_frequency.keys())[list(dict_frequency.values())
+                                                    .index(max(dict_frequency.values()))]
+        scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right,
+                                        borderType=cv2.BORDER_CONSTANT, value=int(best_frequency_value))
+        cv2.imshow('debug2', scaled_img)
+        cv2.waitKey(0)
+        scaled_img = transforms.ToTensor()(scaled_img)
+        return scaled_img
+
+
+    read_image('G:/PYTHON/add_git/bttr_model/image_latex/Train_0000001.png', (128, 512))
+
