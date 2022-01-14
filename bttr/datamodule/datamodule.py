@@ -8,7 +8,7 @@ from torch import FloatTensor, LongTensor
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms
 import random
-from vocab import CROHMEVocab
+from .vocab import CROHMEVocab
 import pickle
 import cv2
 import numpy as np
@@ -47,7 +47,7 @@ class LatexDataloader(torch.utils.data.IterableDataset):
                  dir_path: str, batch_size: int,
                  maxlen: int = 200,
                  type_data: str = 'train',
-                 image_size: tuple = (64, 256),
+                 image_size: tuple = (128, 512),
                  isLoaded: bool = True,
                  isShuffle: bool = False):
 
@@ -90,8 +90,7 @@ class LatexDataloader(torch.utils.data.IterableDataset):
                         list_data = []
                     counter += 1
                     indices = vocab.words2indices(formula)
-                    if len(indices) <= self.maxlen:
-                        list_data.append((img_name, image_path, indices))
+                    list_data.append((img_name, image_path, indices))
             if (len(datasets) % self.batch_size):
                 list_data.append(random.sample(total_list_data[random.randint(0, len(total_list_data) - 1)],
                                                self.batch_size - len(list_data)))
@@ -313,5 +312,5 @@ if __name__ == '__main__':
         return scaled_img
 
 
-    read_image('G:/PYTHON/add_git/bttr_model/image_latex/Train_0000001.png', (128, 512))
+    read_image('Train_0000001.png', (128, 512))
 
