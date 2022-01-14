@@ -5,4 +5,5 @@ wget 'https://drive.google.com/uc?export=download&id=1mUrzZnwRurvcd7XFQ9ky6nYt1P
 unzip ProcessImage.zip
 rm ProcessImage.zip
 
+pip install -r requirements.txt
 python train.py --config config.yaml
